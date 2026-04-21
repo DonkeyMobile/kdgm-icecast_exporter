@@ -13,8 +13,8 @@ RUN go mod init github.com/DonkeyMobile/kdgm-icecast_exporter \
 # Final stage
 FROM alpine
 
-COPY --from=build /icecast_exporter /icecast_exporter
+COPY --from=build /icecast_exporter /go/bin/icecast_exporter
 
 EXPOSE 9146
 USER nobody
-ENTRYPOINT ["/icecast_exporter"]
+ENTRYPOINT ["/go/bin/icecast_exporter"]
