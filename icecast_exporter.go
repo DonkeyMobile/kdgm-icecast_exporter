@@ -19,7 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -192,10 +192,8 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 	}
 	defer resp.Body.Close()
 	e.up.Set(1)
-	
-	// Copy response body into intermediate buffer,
-	// so we can deserialize twice
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		e.up.Set(0)
 		e.scrapeErrors.Inc()
