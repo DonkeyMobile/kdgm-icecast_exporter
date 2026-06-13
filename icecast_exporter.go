@@ -87,6 +87,7 @@ type Exporter struct {
 
 	up                              prometheus.Gauge
 	totalScrapes, jsonParseFailures prometheus.Counter
+	scrapeErrors                    prometheus.Counter
 	serverStart                     prometheus.Gauge
 	listeners                       *prometheus.GaugeVec
 	streamStart                     *prometheus.GaugeVec
@@ -111,6 +112,11 @@ func NewExporter(uri string, timeout time.Duration) *Exporter {
 			Namespace: namespace,
 			Name:      "exporter_json_parse_failures",
 			Help:      "Number of errors while parsing JSON.",
+		}),
+		scrapeErrors: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "exporter_scrape_errors_total",
+			Help:      "Number of errors while scraping Icecast.",
 		}),
 		serverStart: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
@@ -137,6 +143,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.up.Desc()
 	ch <- e.totalScrapes.Desc()
 	ch <- e.jsonParseFailures.Desc()
+	ch <- e.scrapeErrors.Desc()
 	ch <- e.serverStart.Desc()
 	e.listeners.Describe(ch)
 	e.streamStart.Describe(ch)
@@ -165,6 +172,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.up
 	ch <- e.totalScrapes
 	ch <- e.jsonParseFailures
+	ch <- e.scrapeErrors
 	ch <- e.serverStart
 	e.listeners.Collect(ch)
 	e.streamStart.Collect(ch)
@@ -178,6 +186,7 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 	resp, err := e.client.Get(e.URI)
 	if err != nil {
 		e.up.Set(0)
+		e.scrapeErrors.Inc()
 		log.Printf("Can't scrape Icecast: %v", err)
 		return
 	}
@@ -189,7 +198,8 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		e.up.Set(0)
-		log.Printf("Can't ready response body: %v", err)
+		e.scrapeErrors.Inc()
+		log.Printf("Can't read response body: %v", err)
 		return
 	}
 	
@@ -206,6 +216,7 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 		if err != nil {
 			log.Printf("Can't read JSON: %v", err)
 			e.jsonParseFailures.Inc()
+			e.scrapeErrors.Inc()
 			return
 		}
 		
