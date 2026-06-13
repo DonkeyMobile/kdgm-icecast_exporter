@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
@@ -244,12 +245,20 @@ func main() {
              </html>`))
 	})
 
+	srv := &http.Server{Addr: *listenAddress}
+
 	go func() {
 		log.Printf("Starting Server: %s", *listenAddress)
-		log.Fatal(http.ListenAndServe(*listenAddress, nil))
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
 	}()
 
 	s := <-sigchan
-	log.Printf("Received %v, terminating", s)
-	os.Exit(0)
+	log.Printf("Received %v, shutting down", s)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Shutdown error: %v", err)
+	}
 }
