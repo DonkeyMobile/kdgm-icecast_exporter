@@ -38,7 +38,7 @@ jobs:
 
   build:
     needs: test
-    if: github.repository == 'DonkeyMobile/kdgm-icecast_exporter'
+    if: github.repository == 'DonkeyMobile/kdgm-icecast_exporter' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
