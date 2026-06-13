@@ -2,13 +2,11 @@ FROM golang:1.24-alpine AS build
 
 WORKDIR /src
 
-RUN apk add --no-cache git
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY icecast_exporter.go .
-
-RUN go mod init github.com/DonkeyMobile/kdgm-icecast_exporter \
-  && go mod tidy \
-  && CGO_ENABLED=0 go build -o /icecast_exporter .
+RUN CGO_ENABLED=0 go build -o /icecast_exporter .
 
 # Final stage
 FROM alpine
