@@ -1,41 +1,37 @@
 # Icecast exporter for Prometheus
 
-This is a simple [Prometheus](https://prometheus.io/) exporter that scrapes stats from the [Icecast](http://icecast.org/) streaming media server. It requires the JSON API (`/status-json.xsl`)
-provided by Icecast 2.4.0 or newer.
+A [Prometheus](https://prometheus.io/) exporter that scrapes stats from
+[Icecast](http://icecast.org/) streaming media server via its JSON API
+(`/status-json.xsl`, requires Icecast 2.4.0+).
 
 By default icecast_exporter listens on port 9146 for HTTP requests.
 
-## Installation
+## Metrics
 
-### Using `go get`
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `icecast_up` | gauge | | 1 if Icecast is reachable |
+| `icecast_server_start` | gauge | | Timestamp of server startup |
+| `icecast_listeners` | gauge | listenurl, server_type | Currently connected listeners |
+| `icecast_stream_start` | gauge | listenurl, server_type | Timestamp of active source connection |
+| `icecast_exporter_scrape_errors_total` | counter | | Errors scraping Icecast |
 
-```bash
-go get github.com/markuslindenberg/icecast_exporter
+## Running
+
 ```
-### Using Docker
-
-```
-docker pull markuslindenberg/icecast_exporter
-docker run --rm -p 9146:9146 markuslindenberg/icecast_exporter -icecast.scrape-uri http://icecast:8000/status-json.xsl
+docker run --rm -p 9146:9146 kdgm/icecast_exporter \
+  -icecast.scrape-uri http://icecast:8000/status-json.xsl
 ```
 
-# Running
+### Flags
 
-Help on flags:
 ```
-go run icecast_exporter --help
-
-Usage of ./icecast_exporter:
-  -icecast.scrape-uri string
-    	URI on which to scrape Icecast. (default "http://localhost:8000/status-json.xsl")
-  -icecast.timeout duration
-    	Timeout for trying to get stats from Icecast. (default 5s)
-  -log.format value
-    	Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true" (default "logger:stderr")
-  -log.level value
-    	Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]
   -web.listen-address string
-    	Address to listen on for web interface and telemetry. (default ":9146")
+        Address to listen on for web interface and telemetry. (default ":9146")
   -web.telemetry-path string
-    	Path under which to expose metrics. (default "/metrics")
+        Path under which to expose metrics. (default "/metrics")
+  -icecast.scrape-uri string
+        URI on which to scrape Icecast. (default "http://localhost:8000/status-json.xsl")
+  -icecast.timeout duration
+        Timeout for trying to get stats from Icecast. (default 5s)
 ```
