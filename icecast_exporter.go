@@ -20,7 +20,6 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -127,20 +126,7 @@ func NewExporter(uri string, timeout time.Duration) *Exporter {
 			Name:      "stream_start",
 			Help:      "Timestamp of when the currently active source client connected to this mount point.",
 		}, labelNames),
-		client: &http.Client{
-			Transport: &http.Transport{
-				Dial: func(netw, addr string) (net.Conn, error) {
-					c, err := net.DialTimeout(netw, addr, timeout)
-					if err != nil {
-						return nil, err
-					}
-					if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
-						return nil, err
-					}
-					return c, nil
-				},
-			},
-		},
+		client: &http.Client{Timeout: timeout},
 	}
 }
 
