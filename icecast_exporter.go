@@ -230,7 +230,7 @@ func main() {
 	var (
 		listenAddress    = flag.String("web.listen-address", ":9146", "Address to listen on for web interface and telemetry.")
 		metricsPath      = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		icecastScrapeURI = flag.String("icecast.scrape-uri", "http://localhost:8000/status-json.xsl", "URI on which to scrape Icecast.")
+		icecastScrapeURI = flag.String("icecast.scrape-uri", "http://localhost:8000/admin/stats.xsl", "URI on which to scrape Icecast.")
 		icecastTimeout   = flag.Duration("icecast.timeout", 5*time.Second, "Timeout for trying to get stats from Icecast.")
 	)
 	flag.Parse()
