@@ -87,13 +87,18 @@ icecast_listeners{listenurl="http://localhost:8000/live",server_type="audio/mpeg
 				t.Fatalf("gather failed: %v", err)
 			}
 
+			var foundUp bool
 			for _, mf := range metrics {
 				if mf.GetName() == "icecast_up" {
+					foundUp = true
 					got := mf.GetMetric()[0].GetGauge().GetValue()
 					if got != tt.wantUp {
 						t.Errorf("icecast_up = %v, want %v", got, tt.wantUp)
 					}
 				}
+			}
+			if !foundUp {
+				t.Fatalf("icecast_up metric not found")
 			}
 
 			if tt.wantMetric != "" {
