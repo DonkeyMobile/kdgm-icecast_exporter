@@ -12,6 +12,8 @@ By default icecast_exporter listens on port 9146 for HTTP requests.
 | `icecast_server_start` | gauge | | Timestamp of server startup |
 | `icecast_listeners` | gauge | listenurl, server_type | Currently connected listeners |
 | `icecast_stream_start` | gauge | listenurl, server_type | Timestamp of active source connection |
+| `icecast_exporter_total_scrapes` | counter | | Current total Icecast scrapes |
+| `icecast_exporter_json_parse_failures` | counter | | Number of errors while parsing JSON |
 | `icecast_exporter_scrape_errors_total` | counter | | Errors scraping Icecast |
 
 ## Running
