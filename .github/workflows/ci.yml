@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 concurrency:
@@ -18,8 +21,24 @@ env:
   AWS_ACCOUNT_ID: 572644791606
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test -v ./...
+
   build:
-    if: github.repository == 'DonkeyMobile/kdgm-icecast_exporter'
+    needs: test
+    if: github.repository == 'DonkeyMobile/kdgm-icecast_exporter' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

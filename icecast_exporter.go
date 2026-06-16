@@ -16,11 +16,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -87,6 +87,7 @@ type Exporter struct {
 
 	up                              prometheus.Gauge
 	totalScrapes, jsonParseFailures prometheus.Counter
+	scrapeErrors                    prometheus.Counter
 	serverStart                     prometheus.Gauge
 	listeners                       *prometheus.GaugeVec
 	streamStart                     *prometheus.GaugeVec
@@ -112,6 +113,11 @@ func NewExporter(uri string, timeout time.Duration) *Exporter {
 			Name:      "exporter_json_parse_failures",
 			Help:      "Number of errors while parsing JSON.",
 		}),
+		scrapeErrors: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "exporter_scrape_errors_total",
+			Help:      "Number of errors while scraping Icecast.",
+		}),
 		serverStart: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "server_start",
@@ -127,20 +133,7 @@ func NewExporter(uri string, timeout time.Duration) *Exporter {
 			Name:      "stream_start",
 			Help:      "Timestamp of when the currently active source client connected to this mount point.",
 		}, labelNames),
-		client: &http.Client{
-			Transport: &http.Transport{
-				Dial: func(netw, addr string) (net.Conn, error) {
-					c, err := net.DialTimeout(netw, addr, timeout)
-					if err != nil {
-						return nil, err
-					}
-					if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
-						return nil, err
-					}
-					return c, nil
-				},
-			},
-		},
+		client: &http.Client{Timeout: timeout},
 	}
 }
 
@@ -150,6 +143,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.up.Desc()
 	ch <- e.totalScrapes.Desc()
 	ch <- e.jsonParseFailures.Desc()
+	ch <- e.scrapeErrors.Desc()
 	ch <- e.serverStart.Desc()
 	e.listeners.Describe(ch)
 	e.streamStart.Describe(ch)
@@ -178,6 +172,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.up
 	ch <- e.totalScrapes
 	ch <- e.jsonParseFailures
+	ch <- e.scrapeErrors
 	ch <- e.serverStart
 	e.listeners.Collect(ch)
 	e.streamStart.Collect(ch)
@@ -191,18 +186,18 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 	resp, err := e.client.Get(e.URI)
 	if err != nil {
 		e.up.Set(0)
+		e.scrapeErrors.Inc()
 		log.Printf("Can't scrape Icecast: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 	e.up.Set(1)
-	
-	// Copy response body into intermediate buffer,
-	// so we can deserialize twice
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		e.up.Set(0)
-		log.Printf("Can't ready response body: %v", err)
+		e.scrapeErrors.Inc()
+		log.Printf("Can't read response body: %v", err)
 		return
 	}
 	
@@ -219,6 +214,7 @@ func (e *Exporter) scrape(status chan<- *IcecastStatus) {
 		if err != nil {
 			log.Printf("Can't read JSON: %v", err)
 			e.jsonParseFailures.Inc()
+			e.scrapeErrors.Inc()
 			return
 		}
 		
@@ -234,7 +230,7 @@ func main() {
 	var (
 		listenAddress    = flag.String("web.listen-address", ":9146", "Address to listen on for web interface and telemetry.")
 		metricsPath      = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		icecastScrapeURI = flag.String("icecast.scrape-uri", "http://localhost:8000/status-json.xsl", "URI on which to scrape Icecast.")
+		icecastScrapeURI = flag.String("icecast.scrape-uri", "http://localhost:8000/admin/stats.xsl", "URI on which to scrape Icecast.")
 		icecastTimeout   = flag.Duration("icecast.timeout", 5*time.Second, "Timeout for trying to get stats from Icecast.")
 	)
 	flag.Parse()
@@ -258,12 +254,20 @@ func main() {
              </html>`))
 	})
 
+	srv := &http.Server{Addr: *listenAddress}
+
 	go func() {
 		log.Printf("Starting Server: %s", *listenAddress)
-		log.Fatal(http.ListenAndServe(*listenAddress, nil))
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
 	}()
 
 	s := <-sigchan
-	log.Printf("Received %v, terminating", s)
-	os.Exit(0)
+	log.Printf("Received %v, shutting down", s)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Shutdown error: %v", err)
+	}
 }
