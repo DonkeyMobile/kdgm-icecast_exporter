@@ -109,11 +109,9 @@ icecast_listeners{listenurl="http://localhost:8000/live",server_type="audio/mpeg
 				}
 			}
 
-			if tt.wantScrapeErrs > 0 {
-				got := testutil.ToFloat64(e.scrapeErrors)
-				if got != tt.wantScrapeErrs {
-					t.Errorf("scrape_errors = %v, want %v", got, tt.wantScrapeErrs)
-				}
+			got := testutil.ToFloat64(e.scrapeErrors)
+			if got != tt.wantScrapeErrs {
+				t.Errorf("scrape_errors = %v, want %v", got, tt.wantScrapeErrs)
 			}
 		})
 	}
